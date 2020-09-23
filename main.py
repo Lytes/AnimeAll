@@ -6,12 +6,30 @@ import requests
 import math
 import re
 import youtube_dl
+import os
+import sys 
 
 anime_per_page = 30 #Animepahe's episode links per API request. Might change in the future
 
 payload = "\r\n"  # Required for Animepahe APIs to reply.
 episode_links_array = {} # Dictionary to select episode link selected by user
 
+def folder_create(name): # Creates a folder for each anime
+	downloads_folder = os.path.join(os.getcwd(), "Downloads")
+	anime_folder = os.path.join(downloads_folder, name)
+	
+	try:
+		if os.path.isdir(downloads_folder) != True:
+			print("[+][+] Creating general folder")
+			os.mkdir(downloads_folder) # Creates general Downloads folder for AnimeAll script 
+		if os.path.isdir(anime_folder) != True:
+			print("[+][+] Creating download folder for {}".format(name))
+			os.mkdir(anime_folder)
+	except Exception:
+		print("[=][=] Folder creation failed\n[=][=] Make sure you have permission to create folders in current directory")
+		sys.exit()
+	return(anime_folder)
+		
 def search_anime(anime_name): # Searches for the anime and returns link of what user picks.
 	search_link = "https://animepahe.com/api?m=search&l=8&q={}".format(anime_name.lower()) 
 	headers = {'Host': 'animepahe.com', 'Referer': 'https://animepahe.com/', 'Content-Length': '2'}
@@ -88,10 +106,10 @@ def get_episode_links(session, title, episodes_number, anime_id):
 						episode_links_array[i['episode']] = "https://animepahe.com/play/{}/{}".format(session, i['session'])
 			except Exception:
 				pass
-		
-	download_each_episode(episode_links_array, link_anime)
+	download_path = folder_create(title)
+	download_each_episode(episode_links_array, link_anime, download_path)
 				
-def download_each_episode(array, referer):
+def download_each_episode(array, referer, download_path):
 	for number, link in array.items(): #Iterate through the episode links
 		headers = {'Host': 'animepahe.com', 'Referer': '{}'.format(referer), 'Content-Length': '2'}
 		r = requests.get(link, headers=headers, data=payload)		
@@ -107,7 +125,8 @@ def download_each_episode(array, referer):
 		try:			
 			print("[+][+] Downloading Episode {} as {}.mp4".format(number, number))
 			youtube_dl.std_headers['Referer'] = regexed_link # Youtube_dl when embedded in python doesn't seem to have an options to add referer header so I'm adding it manually
-			ydl_opts = {'quiet': 'yes', 'outtmpl': '{}.mp4'.format(number)}
+			episode_download_path = os.path.join(download_path, '{}.mp4'.format(number))
+			ydl_opts = {'quiet': 'yes', 'outtmpl': episode_download_path}
 			#ydl_opts = {}
 			with youtube_dl.YoutubeDL(ydl_opts) as ydl:
 				ydl.download([download_link])
